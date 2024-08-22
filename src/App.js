@@ -15,6 +15,10 @@ function App() {
     socket.on('connect', () => {
       console.log('Connected to server');
     });
+  
+    socket.on('connect_error', (error) => {
+      console.log('Connection error:', error);
+    });
 
     socket.on('noteCreated', (note) => {
       setNotes((prevNotes) => [...prevNotes, note]);
@@ -30,6 +34,7 @@ function App() {
     });
 
     socket.on('sessionCreated', (newSessionCode) => {
+      console.log(`Received sessionCreated event with code: ${newSessionCode}`);
       setSessionCode(newSessionCode);
       setIsJoined(true);
     });
@@ -55,7 +60,9 @@ function App() {
   };
 
   const createSession = () => {
+    console.log("Create Session button clicked");
     socket.emit('createSession');
+    console.log("createSession event emitted");
   };
 
   const handleCreateNote = () => {
