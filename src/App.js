@@ -12,6 +12,10 @@ function App() {
   const [isJoined, setIsJoined] = useState(false);
 
   useEffect(() => {
+    socket.on('connect', () => {
+      console.log('Connected to server');
+    });
+
     socket.on('noteCreated', (note) => {
       setNotes((prevNotes) => [...prevNotes, note]);
     });
@@ -25,15 +29,22 @@ function App() {
       setIsJoined(true);
     });
 
+    socket.on('sessionCreated', (newSessionCode) => {
+      setSessionCode(newSessionCode);
+      setIsJoined(true);
+    });
+
     socket.on('sessionError', (error) => {
       alert(error);
       setIsJoined(false);
     });
 
     return () => {
+      socket.off('connect');
       socket.off('noteCreated');
       socket.off('noteDeleted');
       socket.off('sessionJoined');
+      socket.off('sessionCreated');
       socket.off('sessionError');
     };
   }, []);
@@ -41,6 +52,10 @@ function App() {
   const joinSession = () => {
     if (sessionCode.trim() === '') return;
     socket.emit('joinSession', sessionCode);
+  };
+
+  const createSession = () => {
+    socket.emit('createSession');
   };
 
   const handleCreateNote = () => {
@@ -63,24 +78,31 @@ function App() {
       note.id === id ? { ...note, position: { x: data.x, y: data.y } } : note
     );
     setNotes(updatedNotes);
-    // Optionally, emit the updated note position to the server
-    // socket.emit('updateNotePosition', { id, position: { x: data.x, y: data.y }, sessionCode });
+    socket.emit('updateNotePosition', { id, position: { x: data.x, y: data.y }, sessionCode });
   };
 
   return (
     <div className="App">
       {!isJoined ? (
-        <div className="join-session">
-          <input
-            type="text"
-            placeholder="Enter session code"
-            value={sessionCode}
-            onChange={(e) => setSessionCode(e.target.value)}
-          />
-          <button onClick={joinSession}>Join Session</button>
+        <div className="session-controls">
+          <div className="join-session">
+            <input
+              type="text"
+              placeholder="Enter session code"
+              value={sessionCode}
+              onChange={(e) => setSessionCode(e.target.value)}
+            />
+            <button onClick={joinSession}>Join Session</button>
+          </div>
+          <div className="create-session">
+            <button onClick={createSession}>Create New Session</button>
+          </div>
         </div>
       ) : (
         <>
+          <div className="session-info">
+            <p>Current Session: {sessionCode}</p>
+          </div>
           <div className="board">
             {notes.map((note) => (
               <Draggable
