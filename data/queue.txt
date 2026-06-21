@@ -1,0 +1,4 @@
+# Add manual product ideas here, one per line.
+# Format: product name | category | notes (notes optional)
+# Brand Engine does not currently auto-ingest this file; it is a scratchpad
+# for the operator to track ideas surfaced outside the automated sweeps.

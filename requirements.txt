@@ -1,0 +1,8 @@
+anthropic>=0.40.0
+pyautogui>=0.9.54
+Pillow>=10.4.0
+APScheduler>=3.10.4
+requests>=2.32.0
+python-dotenv>=1.0.1
+pygetwindow>=0.0.9
+browser-cookie3>=0.20.1
