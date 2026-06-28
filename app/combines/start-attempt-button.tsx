@@ -1,8 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export default function StartAttemptButton({ combineId }: { combineId: string }) {
+  const router = useRouter();
   const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
   const [message, setMessage] = useState<string | null>(null);
 
@@ -15,12 +17,12 @@ export default function StartAttemptButton({ combineId }: { combineId: string })
       body: JSON.stringify({ combineId }),
     });
     const body = await res.json().catch(() => ({}));
-    setStatus("done");
     if (!res.ok) {
+      setStatus("done");
       setMessage(body.error ?? "could not start attempt");
       return;
     }
-    setMessage(`Attempt started (id: ${body.attempt.id}). Voice roleplay isn't wired up yet.`);
+    router.push(`/attempt/${body.attempt.id}`);
   }
 
   return (
