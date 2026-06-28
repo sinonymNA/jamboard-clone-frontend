@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserId } from "@/lib/auth";
+import { getCurrentSeason, countAttemptsThisPeriod } from "@/lib/season";
 
 export async function GET() {
   const userId = await getCurrentUserId();
@@ -15,13 +16,8 @@ export async function GET() {
     return Response.json({ error: "not authenticated" }, { status: 401 });
   }
 
-  const currentSeason = await prisma.season.findFirst({ where: { isActive: true } });
-
-  const attemptsUsedThisPeriod = currentSeason
-    ? await prisma.attempt.count({
-        where: { userId: user.id, seasonId: currentSeason.id },
-      })
-    : 0;
+  const currentSeason = await getCurrentSeason();
+  const attemptsUsedThisPeriod = await countAttemptsThisPeriod(user.id, currentSeason?.id ?? null);
 
   return Response.json({
     id: user.id,
