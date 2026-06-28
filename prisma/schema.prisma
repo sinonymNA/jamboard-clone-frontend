@@ -1,0 +1,219 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum EntitlementPlan {
+  FREE
+  PAID
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  displayName  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  attempts    Attempt[]
+  tierHistory TierHistory[]
+  entitlement Entitlement?
+}
+
+model Entitlement {
+  id               String           @id @default(cuid())
+  userId           String           @unique
+  plan             EntitlementPlan  @default(FREE)
+  freeAttemptLimit Int              @default(3)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Season {
+  id        String   @id @default(cuid())
+  name      String
+  startsAt  DateTime
+  endsAt    DateTime
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  tierHistory TierHistory[]
+  attempts    Attempt[]
+  combines    Combine[]
+
+  @@index([isActive])
+  @@index([startsAt, endsAt])
+}
+
+model Tier {
+  id            String  @id @default(cuid())
+  name          String  @unique
+  rankOrder     Int     @unique
+  passThreshold Int
+  description   String?
+
+  tierHistory TierHistory[]
+}
+
+model TierHistory {
+  id            String    @id @default(cuid())
+  userId        String
+  tierId        String
+  seasonId      String?
+  attemptId     String    @unique
+  achievedAt    DateTime  @default(now())
+  revokedAt     DateTime?
+  revokedReason String?
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tier    Tier    @relation(fields: [tierId], references: [id])
+  season  Season? @relation(fields: [seasonId], references: [id])
+  attempt Attempt @relation(fields: [attemptId], references: [id])
+
+  @@index([userId, achievedAt])
+  @@index([seasonId, tierId])
+}
+
+model Combine {
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  numScenarios     Int
+  cumulativeTarget Int
+  perScenarioFloor Int
+  seasonId         String?
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  season           Season?           @relation(fields: [seasonId], references: [id])
+  combineScenarios CombineScenario[]
+  attempts         Attempt[]
+
+  @@index([seasonId, isActive])
+}
+
+model Scenario {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  personaPrompt String   @db.Text
+  voiceConfig   Json?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  combineScenarios CombineScenario[]
+}
+
+model CombineScenario {
+  id         String   @id @default(cuid())
+  combineId  String
+  scenarioId String
+  sortOrder  Int
+  createdAt  DateTime @default(now())
+
+  combine          Combine                    @relation(fields: [combineId], references: [id], onDelete: Cascade)
+  scenario         Scenario                   @relation(fields: [scenarioId], references: [id])
+  scenarioAttempts ScenarioAttempt[]
+  dimensionLinks   CombineScenarioDimension[]
+
+  @@unique([combineId, sortOrder])
+  @@index([combineId])
+}
+
+model Dimension {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  combineScenarioLinks CombineScenarioDimension[]
+  scores               ScenarioScore[]
+}
+
+model CombineScenarioDimension {
+  id                 String @id @default(cuid())
+  combineScenarioId  String
+  dimensionId        String
+  weight             Float  @default(1.0)
+
+  combineScenario CombineScenario @relation(fields: [combineScenarioId], references: [id], onDelete: Cascade)
+  dimension       Dimension       @relation(fields: [dimensionId], references: [id])
+
+  @@unique([combineScenarioId, dimensionId])
+}
+
+model Attempt {
+  id              String        @id @default(cuid())
+  userId          String
+  combineId       String
+  seasonId        String?
+  status          AttemptStatus @default(IN_PROGRESS)
+  cumulativeScore Int?
+  passed          Boolean?
+  startedAt       DateTime      @default(now())
+  completedAt     DateTime?
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  combine          Combine           @relation(fields: [combineId], references: [id])
+  season           Season?           @relation(fields: [seasonId], references: [id])
+  scenarioAttempts ScenarioAttempt[]
+  tierHistoryEvent TierHistory?
+
+  @@index([userId, status])
+  @@index([seasonId, passed, cumulativeScore])
+  @@index([combineId])
+  @@index([userId, seasonId])
+}
+
+model ScenarioAttempt {
+  id                String    @id @default(cuid())
+  attemptId         String
+  combineScenarioId String
+  transcript        Json
+  audioRef          String?
+  rollupScore       Int?
+  floorBreached     Boolean?
+  startedAt         DateTime  @default(now())
+  completedAt       DateTime?
+
+  attempt         Attempt         @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  combineScenario CombineScenario @relation(fields: [combineScenarioId], references: [id])
+  scores          ScenarioScore[]
+
+  @@index([attemptId])
+}
+
+model ScenarioScore {
+  id                String   @id @default(cuid())
+  scenarioAttemptId String
+  dimensionId       String
+  rawScore          Int
+  verifiedScore     Int
+  isFlagged         Boolean  @default(false)
+  flagReason        String?
+  feedbackSummary   String   @db.Text
+  feedbackQuotes    Json?
+  createdAt         DateTime @default(now())
+
+  scenarioAttempt ScenarioAttempt @relation(fields: [scenarioAttemptId], references: [id], onDelete: Cascade)
+  dimension       Dimension       @relation(fields: [dimensionId], references: [id])
+
+  @@unique([scenarioAttemptId, dimensionId])
+  @@index([dimensionId])
+}
