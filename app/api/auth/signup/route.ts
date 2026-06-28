@@ -26,8 +26,12 @@ export async function POST(request: Request) {
   }
 
   const passwordHash = await hashPassword(password);
-  const user = await prisma.user.create({
-    data: { email, passwordHash, displayName },
+  const user = await prisma.$transaction(async (tx) => {
+    const created = await tx.user.create({
+      data: { email, passwordHash, displayName },
+    });
+    await tx.entitlement.create({ data: { userId: created.id } });
+    return created;
   });
 
   const token = await signSessionToken(user.id);
