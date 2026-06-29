@@ -3,6 +3,7 @@ import { getCurrentUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSeason, countAttemptsThisPeriod } from "@/lib/season";
 import { getCurrentTier } from "@/lib/tier";
+import PaidInsights from "./paid-insights";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export default async function DashboardPage() {
   const freeAttemptLimit = user.entitlement?.freeAttemptLimit ?? 3;
 
   return (
-    <main style={{ fontFamily: "system-ui", padding: "4rem 2rem", maxWidth: 480 }}>
+    <main style={{ fontFamily: "system-ui", padding: "4rem 2rem", maxWidth: plan === "PAID" ? 720 : 480 }}>
       <h1>Dashboard</h1>
 
       <section style={{ border: "1px solid #ccc", borderRadius: 8, padding: "1rem", marginBottom: "1.5rem" }}>
@@ -49,6 +50,8 @@ export default async function DashboardPage() {
           Upgrade to a paid plan for unlimited attempts and a full performance dashboard.
         </p>
       )}
+
+      {plan === "PAID" && <PaidInsights userId={userId} />}
     </main>
   );
 }
