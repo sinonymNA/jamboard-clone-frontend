@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "prisma migrate deploy && next start",
     "lint": "eslint",
+    "season": "tsx scripts/manage-season.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
