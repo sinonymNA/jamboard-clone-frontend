@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { awardTierIfEarned } from "@/lib/tier";
 
 export async function maybeCompleteAttempt(attemptId: string) {
   const attempt = await prisma.attempt.findUnique({
@@ -18,8 +19,14 @@ export async function maybeCompleteAttempt(attemptId: string) {
   const floorBreachedAny = gradedAttempts.some((sa) => sa.floorBreached === true);
   const passed = !floorBreachedAny && cumulativeScore >= attempt.combine.cumulativeTarget;
 
-  return prisma.attempt.update({
+  const completed = await prisma.attempt.update({
     where: { id: attemptId },
     data: { status: "COMPLETED", cumulativeScore, passed, completedAt: new Date() },
   });
+
+  if (passed) {
+    await awardTierIfEarned(attemptId);
+  }
+
+  return completed;
 }

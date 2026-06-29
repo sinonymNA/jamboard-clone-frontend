@@ -35,6 +35,7 @@ export default function AttemptFlow({
         <p>
           Cumulative score: {attempt.cumulativeScore} / {cumulativeTarget}
         </p>
+        {attempt.tierHistoryEvent && <p>Tier earned: {attempt.tierHistoryEvent.tier.name}</p>}
       </div>
     );
   }

@@ -98,7 +98,24 @@ async function main() {
     }
   }
 
-  console.log(`Seeded ${dimensions.length} dimensions, ${scenarios.length} scenarios, 1 combine ("${combine.name}").`);
+  const tiers = await Promise.all(
+    [
+      { name: "Minnow", rankOrder: 1, passThreshold: 0, description: "Cleared a Combine for the first time." },
+      { name: "Reef", rankOrder: 2, passThreshold: 150, description: "Consistently solid cold-call performance." },
+      { name: "Mako", rankOrder: 3, passThreshold: 220, description: "Sharp, well-rounded sales execution." },
+      { name: "Apex", rankOrder: 4, passThreshold: 270, description: "Elite, near-flawless Combine performance." },
+    ].map((t) =>
+      prisma.tier.upsert({
+        where: { name: t.name },
+        update: { rankOrder: t.rankOrder, passThreshold: t.passThreshold, description: t.description },
+        create: t,
+      })
+    )
+  );
+
+  console.log(
+    `Seeded ${dimensions.length} dimensions, ${scenarios.length} scenarios, 1 combine ("${combine.name}"), ${tiers.length} tiers.`
+  );
 }
 
 main()

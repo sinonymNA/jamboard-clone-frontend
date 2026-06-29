@@ -10,6 +10,7 @@ export type AttemptSnapshot = {
   status: "IN_PROGRESS" | "COMPLETED" | "ABANDONED";
   cumulativeScore: number | null;
   passed: boolean | null;
+  tierHistoryEvent?: { tier: { name: string } } | null;
 };
 
 export default function VoiceSession({

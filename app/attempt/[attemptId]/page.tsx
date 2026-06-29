@@ -14,7 +14,7 @@ export default async function AttemptPage({
 
   const attempt = await prisma.attempt.findUnique({
     where: { id: attemptId },
-    include: { combine: true, scenarioAttempts: true },
+    include: { combine: true, scenarioAttempts: true, tierHistoryEvent: { include: { tier: true } } },
   });
   if (!attempt || attempt.userId !== userId) redirect("/combines");
 
@@ -42,6 +42,7 @@ export default async function AttemptPage({
           status: attempt.status,
           cumulativeScore: attempt.cumulativeScore,
           passed: attempt.passed,
+          tierHistoryEvent: attempt.tierHistoryEvent,
         }}
       />
     </main>

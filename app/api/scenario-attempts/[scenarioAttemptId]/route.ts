@@ -42,7 +42,10 @@ export async function PATCH(
     where: { id: scenarioAttemptId },
     include: { scores: true },
   });
-  const attempt = await prisma.attempt.findUnique({ where: { id: scenarioAttempt.attemptId } });
+  const attempt = await prisma.attempt.findUnique({
+    where: { id: scenarioAttempt.attemptId },
+    include: { tierHistoryEvent: { include: { tier: true } } },
+  });
 
   return Response.json({ scenarioAttempt: graded ?? updated, attempt, gradingError });
 }
