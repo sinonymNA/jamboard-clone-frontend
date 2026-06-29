@@ -19,25 +19,26 @@ export async function POST(request: Request) {
     return Response.json({ error: "attempt is not in progress" }, { status: 409 });
   }
 
-  // Step 8 scope: a single scenario per attempt (sortOrder 0). Multi-scenario
-  // sequencing is step 10.
-  const combineScenario = await prisma.combineScenario.findUnique({
-    where: { combineId_sortOrder: { combineId: attempt.combineId, sortOrder: 0 } },
-    include: { scenario: true },
+  const combineScenarios = await prisma.combineScenario.findMany({
+    where: { combineId: attempt.combineId },
+    orderBy: { sortOrder: "asc" },
+    include: { scenario: true, scenarioAttempts: { where: { attemptId: attempt.id } } },
   });
-  if (!combineScenario) {
+  if (combineScenarios.length === 0) {
     return Response.json({ error: "combine has no scenarios configured" }, { status: 500 });
   }
 
-  let scenarioAttempt = await prisma.scenarioAttempt.findFirst({
-    where: { attemptId: attempt.id, combineScenarioId: combineScenario.id },
-  });
+  const next = combineScenarios.find((cs) => !cs.scenarioAttempts[0]?.completedAt);
+  if (!next) {
+    return Response.json({ error: "all scenarios in this combine are already completed" }, { status: 409 });
+  }
+  const combineScenario = next;
+
+  let scenarioAttempt = combineScenario.scenarioAttempts[0] ?? null;
   if (!scenarioAttempt) {
     scenarioAttempt = await prisma.scenarioAttempt.create({
       data: { attemptId: attempt.id, combineScenarioId: combineScenario.id, transcript: [] },
     });
-  } else if (scenarioAttempt.completedAt) {
-    return Response.json({ error: "scenario already completed" }, { status: 409 });
   }
 
   const apiKey = process.env.OPENAI_API_KEY;

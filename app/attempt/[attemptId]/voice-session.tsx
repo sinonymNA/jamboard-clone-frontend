@@ -6,16 +6,25 @@ type TranscriptEntry = { role: "user" | "assistant"; text: string; timestamp: st
 
 type CallState = "idle" | "connecting" | "active" | "ended" | "error";
 
+export type AttemptSnapshot = {
+  status: "IN_PROGRESS" | "COMPLETED" | "ABANDONED";
+  cumulativeScore: number | null;
+  passed: boolean | null;
+};
+
 export default function VoiceSession({
   attemptId,
   scenarioName,
+  onEnded,
 }: {
   attemptId: string;
   scenarioName: string;
+  onEnded?: (result: { attempt: AttemptSnapshot | null; gradingError: string | null }) => void;
 }) {
   const [state, setState] = useState<CallState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
+  const [gradingError, setGradingError] = useState<string | null>(null);
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const dcRef = useRef<RTCDataChannel | null>(null);
@@ -125,14 +134,21 @@ export default function VoiceSession({
     pcRef.current = null;
 
     const scenarioAttemptId = scenarioAttemptIdRef.current;
+    let attempt: AttemptSnapshot | null = null;
+    let resultGradingError: string | null = null;
     if (scenarioAttemptId) {
-      await fetch(`/api/scenario-attempts/${scenarioAttemptId}`, {
+      const res = await fetch(`/api/scenario-attempts/${scenarioAttemptId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ transcript }),
       });
+      const body = await res.json().catch(() => ({}));
+      attempt = body.attempt ?? null;
+      resultGradingError = body.gradingError ?? null;
+      setGradingError(resultGradingError);
     }
     setState("ended");
+    onEnded?.({ attempt, gradingError: resultGradingError });
   }
 
   return (
@@ -142,7 +158,9 @@ export default function VoiceSession({
       {state === "idle" && <button onClick={startCall}>Start voice roleplay</button>}
       {state === "connecting" && <p>Connecting...</p>}
       {state === "active" && <button onClick={endCall}>End call</button>}
-      {state === "ended" && <p>Call ended. Transcript saved.</p>}
+      {state === "ended" && (
+        <p>{gradingError ? `Call ended. Transcript saved — ${gradingError}` : "Call ended. Transcript saved and graded."}</p>
+      )}
       {state === "error" && (
         <div>
           <p>{error}</p>

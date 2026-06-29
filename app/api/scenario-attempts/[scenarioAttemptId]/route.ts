@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserId } from "@/lib/auth";
 import { gradeScenarioAttempt } from "@/lib/grading";
+import { maybeCompleteAttempt } from "@/lib/attempt-completion";
 
 export async function PATCH(
   request: Request,
@@ -31,6 +32,7 @@ export async function PATCH(
   let gradingError: string | null = null;
   try {
     await gradeScenarioAttempt(scenarioAttemptId);
+    await maybeCompleteAttempt(scenarioAttempt.attemptId);
   } catch (err) {
     console.error("scenario attempt grading failed", scenarioAttemptId, err);
     gradingError = "grading is temporarily unavailable; this scenario will be retried later";
@@ -40,6 +42,7 @@ export async function PATCH(
     where: { id: scenarioAttemptId },
     include: { scores: true },
   });
+  const attempt = await prisma.attempt.findUnique({ where: { id: scenarioAttempt.attemptId } });
 
-  return Response.json({ scenarioAttempt: graded ?? updated, gradingError });
+  return Response.json({ scenarioAttempt: graded ?? updated, attempt, gradingError });
 }

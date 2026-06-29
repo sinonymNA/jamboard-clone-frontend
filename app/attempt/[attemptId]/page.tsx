@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserId } from "@/lib/auth";
-import VoiceSession from "./voice-session";
+import AttemptFlow from "./attempt-flow";
 
 export const dynamic = "force-dynamic";
 
@@ -12,20 +12,38 @@ export default async function AttemptPage({
   const userId = await getCurrentUserId();
   if (!userId) redirect("/login");
 
-  const attempt = await prisma.attempt.findUnique({ where: { id: attemptId } });
+  const attempt = await prisma.attempt.findUnique({
+    where: { id: attemptId },
+    include: { combine: true, scenarioAttempts: true },
+  });
   if (!attempt || attempt.userId !== userId) redirect("/combines");
 
-  const combineScenario = await prisma.combineScenario.findUnique({
-    where: { combineId_sortOrder: { combineId: attempt.combineId, sortOrder: 0 } },
+  const combineScenarios = await prisma.combineScenario.findMany({
+    where: { combineId: attempt.combineId },
+    orderBy: { sortOrder: "asc" },
     include: { scenario: true },
   });
-  if (!combineScenario) redirect("/combines");
+  if (combineScenarios.length === 0) redirect("/combines");
+
+  const scenarios = combineScenarios.map((cs) => {
+    const scenarioAttempt = attempt.scenarioAttempts.find((sa) => sa.combineScenarioId === cs.id);
+    return { name: cs.scenario.name, completed: Boolean(scenarioAttempt?.completedAt) };
+  });
 
   return (
     <main style={{ fontFamily: "system-ui", padding: "4rem 2rem", maxWidth: 720 }}>
       <h1>Attempt</h1>
-      <p>Status: {attempt.status}</p>
-      <VoiceSession attemptId={attempt.id} scenarioName={combineScenario.scenario.name} />
+      <AttemptFlow
+        attemptId={attempt.id}
+        combineName={attempt.combine.name}
+        cumulativeTarget={attempt.combine.cumulativeTarget}
+        scenarios={scenarios}
+        initialAttempt={{
+          status: attempt.status,
+          cumulativeScore: attempt.cumulativeScore,
+          passed: attempt.passed,
+        }}
+      />
     </main>
   );
 }
